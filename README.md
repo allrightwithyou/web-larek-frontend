@@ -37,26 +37,145 @@ npm run build
 
 ## Архитектура и основные классы
 
-- **EventEmitter** — брокер событий для взаимодействия между компонентами.
-  - Методы: `on`, `off`, `emit`, `onAll`, `offAll`, `trigger`
-- **Api** — работа с серверным API (запросы, обработка ответов).
-  - Методы: `get`, `post`, `handleResponse`, `getProducts`, `getProduct`, `createOrder`
-- **ProductModel** — управление данными товаров.
-  - Методы: `setProducts`, `getProductById`
-- **BasketModel** — управление корзиной пользователя.
-  - Методы: `addItem`, `removeItem`, `clear`, `getTotal`, `getItems`
-- **OrderModel** — управление данными заказа.
-  - Методы: `setOrder`, `clearOrder`, `getOrder`
-- **Modal** — управление модальными окнами.
-  - Методы: `open`, `close`, `setContent`, `setTitle`
-- **ProductCard** — отображение карточки товара.
-  - Методы: `render`, `setInBasket`, `onClick`
-- **BasketView** — отображение корзины.
-  - Методы: `render`, `onRemove`, `onCheckout`
-- **OrderForm** — форма оформления заказа.
-  - Методы: `render`, `validate`, `onSubmit`
-- **AppController** (опционально) — координация моделей, представлений и событий.
-  - Методы: `init`, `handleProductClick`, `handleAddToBasket`, `handleOrderSubmit`
+### Используемый паттерн проектирования
+В проекте применяется паттерн **MVC (Model-View-Controller)**:
+- **Model** — управляет данными приложения (товары, корзина, заказ, пользовательские данные).
+- **View** — отвечает за отображение данных и взаимодействие с пользователем (каталог, карточки, корзина, формы, модальные окна).
+- **Controller** — координирует работу моделей и представлений, обрабатывает пользовательские действия и события.
+- **Service** — вспомогательные классы для работы с API и событийной шины.
+
+### Model
+
+#### ProductModel
+- **Задача:** Хранит список товаров, предоставляет методы поиска и фильтрации.
+- **Поля:**
+  - products — массив товаров.
+- **Методы:**
+  - setProducts(products) — сохранить список товаров.
+  - getProductById(id) — получить товар по id.
+  - filterByCategory(category) — фильтрация по категории.
+
+#### BasketModel
+- **Задача:** Хранит содержимое корзины.
+- **Поля:**
+  - items — массив товаров в корзине.
+- **Методы:**
+  - addItem(item) — добавить товар.
+  - removeItem(productId) — удалить товар по id.
+  - clear() — очистить корзину.
+  - getTotal() — посчитать итоговую сумму.
+
+#### OrderModel
+- **Задача:** Хранит пользовательские данные для оформления заказа.
+- **Поля:**
+  - address — адрес доставки.
+  - email — email пользователя.
+  - phone — телефон пользователя.
+  - payment — способ оплаты.
+- **Методы:**
+  - setAddress(address), setEmail(email), setPhone(phone), setPayment(payment) — установить значения.
+  - clear() — очистить все поля.
+
+### View
+
+#### CatalogView
+- **Задача:** Отображает список товаров, создает карточки товаров.
+- **Поля:**
+  - container — DOM-элемент каталога.
+- **Методы:**
+  - render(products) — отрисовать список товаров.
+  - onProductClick(callback) — обработчик клика по товару.
+
+#### ProductCardView
+- **Задача:** Отображает отдельную карточку товара.
+- **Поля:**
+  - element — DOM-элемент карточки.
+  - product — данные товара.
+- **Методы:**
+  - render(product) — отрисовать карточку.
+  - setInBasket(isInBasket) — отметить товар в корзине.
+  - onClick(callback) — обработчик клика.
+
+#### BasketView
+- **Задача:** Отображает содержимое корзины.
+- **Поля:**
+  - container — DOM-элемент корзины.
+- **Методы:**
+  - render(items) — отрисовать товары.
+  - onRemove(callback) — обработчик удаления товара.
+  - onCheckout(callback) — обработчик оформления заказа.
+
+#### OrderFormView
+- **Задача:** Отображает и валидирует форму заказа.
+- **Поля:**
+  - formElement — DOM-элемент формы.
+- **Методы:**
+  - render(orderData) — отрисовать форму.
+  - validate() — валидация данных.
+  - onSubmit(callback) — обработчик отправки.
+
+#### ModalView
+- **Задача:** Управляет модальными окнами.
+- **Поля:**
+  - modalElement — DOM-элемент окна.
+- **Методы:**
+  - open(content, title?) — открыть окно.
+  - close() — закрыть окно.
+  - setContent(content) — изменить содержимое.
+  - setTitle(title) — изменить заголовок.
+
+### Controller
+
+#### AppController
+- **Задача:** Координирует работу моделей и представлений, обрабатывает пользовательские действия.
+- **Поля:**
+  - productModel, basketModel, orderModel — экземпляры моделей.
+  - catalogView, basketView, orderFormView, modalView — экземпляры представлений.
+- **Методы:**
+  - init() — инициализация приложения.
+  - handleProductClick(id) — обработка клика по товару.
+  - handleAddToBasket(id) — добавление в корзину.
+  - handleOrderSubmit(data) — отправка заказа.
+
+### Service
+
+#### Api
+- **Задача:** Взаимодействие с сервером.
+- **Поля:**
+  - baseUrl — адрес API.
+- **Методы:**
+  - get(uri) — GET-запрос.
+  - post(uri, data, method) — POST/PUT/DELETE-запрос.
+  - handleResponse(response) — обработка ответа.
+
+#### EventEmitter
+- **Задача:** Организация событийного взаимодействия между слоями.
+- **Поля:**
+  - _events — карта событий и подписчиков.
+- **Методы:**
+  - on(event, callback) — подписка на событие.
+  - off(event, callback) — отписка.
+  - emit(event, data) — генерация события.
+  - onAll(callback) — подписка на все события.
+  - offAll() — отписка от всех событий.
+  - trigger(event, context) — генерация события с контекстом.
+
+## Пользовательские события и взаимодействие слоёв
+
+Взаимодействие между слоями реализуется через события, создаваемые и обрабатываемые с помощью класса EventEmitter.
+
+**Примеры пользовательских событий:**
+- `product:added` — товар добавлен в корзину (View сообщает Controller, Controller обновляет Model).
+- `product:removed` — товар удалён из корзины.
+- `basket:cleared` — корзина очищена.
+- `order:created` — заказ оформлен.
+- `modal:open` — открытие модального окна.
+- `modal:close` — закрытие модального окна.
+
+**Как это работает:**
+1. View (например, ProductCardView) при клике вызывает событие через EventEmitter.
+2. Controller подписан на эти события и вызывает соответствующие методы моделей.
+3. Модели могут также генерировать события (например, при изменении корзины), чтобы View мог обновить отображение.
 
 ## Описание компонентов
 
@@ -67,6 +186,6 @@ npm run build
 - **OrderForm** — форма для оформления заказа с валидацией.
 
 ## Типы данных
-Все основные интерфейсы и типы определены в файле [`src/types/index.ts`](src/types/types.ts):
+Все основные интерфейсы и типы определены в файле [`src/types/types.ts`](src/types/types.ts):
 - Product, Order, UserContact, BasketItem и др.
 

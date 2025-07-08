@@ -10,7 +10,6 @@ export interface ProductApi {
 }
 
 export interface OrderApi {
-  id: string;
   items: BasketItemApi[];
   total: number;
   address: string;
@@ -22,7 +21,6 @@ export interface OrderApi {
 export interface BasketItemApi {
   id: string;
   productId: string;
-  quantity: number;
   price: number;
 }
 
@@ -72,10 +70,27 @@ export interface IBasketModel {
   getTotal(): number;
 }
 
+
 export interface IOrderModel {
-  order: OrderApi | null;
-  setOrder(order: OrderApi): void;
-  clearOrder(): void;
+  address: string;
+  payment: PaymentType;
+  email: string;
+  phone: string;
+  setAddress(address: string): void;
+  setPayment(payment: PaymentType): void;
+  setEmail(email: string): void;
+  setPhone(phone: string): void;
+  clear(): void;
+}
+
+
+export interface OrderRequest {
+  items: BasketItemApi[];
+  total: number;
+  address: string;
+  payment: PaymentType;
+  email: string;
+  phone: string;
 }
 
 // Интерфейсы отображения
