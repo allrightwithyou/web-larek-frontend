@@ -67,6 +67,6 @@ npm run build
 - **OrderForm** — форма для оформления заказа с валидацией.
 
 ## Типы данных
-Все основные интерфейсы и типы определены в файле [`src/types/index.ts`](src/types/index.ts):
+Все основные интерфейсы и типы определены в файле [`src/types/index.ts`](src/types/types.ts):
 - Product, Order, UserContact, BasketItem и др.
 
