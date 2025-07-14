@@ -9,7 +9,6 @@ export class CatalogView {
 
   constructor(events: EventEmitter) {
     this.events = events;
-    // Используем существующий <main class="gallery">
     const gallery = document.querySelector('.gallery') as HTMLElement;
     if (!gallery) {
       throw new Error('Контейнер .gallery не найден в DOM');
