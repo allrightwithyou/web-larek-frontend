@@ -1,12 +1,21 @@
 export class OrderSuccessView {
   public element: HTMLElement;
+  private totalElement: HTMLElement;
+  private closeButton: HTMLButtonElement;
+
   constructor(total: number) {
-    this.element = document.createElement('div');
-    this.element.className = 'order-success';
-    this.element.innerHTML = `
-      <h2 class="order-success__title">Заказ оформлен</h2>
-      <p class="order-success__description">Списано ${total} синапсов</p>
-      <button class="button order-success__close">За новыми покупками!</button>
-    `;
+    const template = document.getElementById('success') as HTMLTemplateElement;
+    this.element = template.content.firstElementChild!.cloneNode(true) as HTMLElement;
+    this.totalElement = this.element.querySelector('.order-success__description')!;
+    this.closeButton = this.element.querySelector('.order-success__close')!;
+    this.setTotal(total);
+    this.closeButton.addEventListener('click', () => {
+      // Здесь можно вызвать внешний callback или событие, если нужно
+      this.element.dispatchEvent(new CustomEvent('order:close'));
+    });
+  }
+
+  setTotal(total: number) {
+    this.totalElement.textContent = `Списано ${total} синапсов`;
   }
 } 

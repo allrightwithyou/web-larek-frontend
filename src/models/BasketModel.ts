@@ -10,6 +10,7 @@ export class BasketModel {
   }
 
   addItem(item: BasketItemView) {
+    item.id = String(item.id); // Защита от object id
     const existing = this.items.find(i => i.id === item.id);
     if (existing) {
       existing.quantity += item.quantity;
