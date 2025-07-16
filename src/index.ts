@@ -78,14 +78,17 @@ events.on('basket:remove', (event: { id: string }) => {
   const product = productModel.getProductById(event.id);
   if (product) {
     product.inBasket = false;
-    // Если открыта детальная модалка, обновить только её
-    // productDetailView.render({ ...product, inBasket: false });
+    
+    
   }
 });
 
 // Открытие корзины по клику на иконку в шапке
 events.on('basket:open', () => {
-  basketView.render(basketModel.getItems().map((item, idx) => new BasketItemView(item, events, idx).element));
+  const items = basketModel.getItems().map((item, idx) => new BasketItemView(item, events, idx).element);
+  basketView.render(items);
+  basketView.setTotal(basketModel.getTotal());
+  basketView.setOrderButtonDisabled(items.length === 0);
   modalView.open(basketView.getElement());
 });
 // Обновление счетчика корзины
@@ -104,6 +107,7 @@ function updateBasket() {
 events.on('basket:change', () => {
   updateBasket();
   updateBasketCounter();
+  basketView.setOrderButtonDisabled(basketModel.getItems().length === 0);
   // Если открыта модалка с деталями товара, обновить кнопку
   if (
     modalView.element.classList.contains('modal_active') &&
@@ -140,7 +144,7 @@ const orderAddressFormView = new OrderAddressFormView(events);
 const orderContactsFormView = new OrderContactsFormView(events);
 const orderSuccessView = new OrderSuccessView(0); // Сумма передаётся при успехе
 
-// --- Order form events mediation ---
+
 // Передача изменений из view в модель
 
 events.on('order:fieldChanged', (data: { field: string; value: string }) => {
@@ -192,15 +196,12 @@ events.on('order:contacts:submit', () => {
 });
 
 events.on('order:submit', async (data: { address: string; payment: string; email: string; phone: string }) => {
-  // orderModel.setAddress(data.address);
-  // orderModel.setPayment(data.payment as any);
-  // orderModel.setEmail(data.email);
-  // orderModel.setPhone(data.phone);
-  // Отправка заказа на сервер
   try {
+    // Оставляем только товары с валидной ценой
+    const validItems = basketModel.getItems().filter(item => item.price !== null && item.price !== undefined);
     const payload = {
-      items: basketModel.getItems().map(item => item.id),
-      total: basketModel.getTotal(),
+      items: validItems.map(item => item.id),
+      total: validItems.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0),
       address: orderModel.address,
       payment: orderModel.payment,
       email: orderModel.email,

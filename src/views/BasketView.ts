@@ -26,10 +26,15 @@ export class BasketView {
   render(items: HTMLElement[]) {
     this.listElement.innerHTML = '';
     items.forEach(item => this.listElement.appendChild(item));
+    this.setOrderButtonDisabled(items.length === 0);
   }
 
   setTotal(total: number) {
-    this.totalElement.textContent = `${total} синапсов`;
+    this.totalElement.textContent = `${total || 0} синапсов`;
+  }
+
+  setOrderButtonDisabled(disabled: boolean) {
+    this.orderButton.disabled = disabled;
   }
 
   getElement() {

@@ -51,14 +51,16 @@ export class ProductDetailView {
     desc.textContent = product.description;
     category.textContent = product.category;
     category.className = 'card__category card__category_' + this.getCategoryClass(product.category);
-    price.textContent = `${product.price} синапсов`;
+    price.textContent = `${(typeof product.price === 'number' && product.price > 0) ? product.price : 0} синапсов`;
 
     if (product.inBasket) {
       btn.textContent = 'Убрать';
       btn.onclick = () => this.events.emit('basket:remove', { id: product.id });
+      btn.disabled = false;
     } else {
       btn.textContent = 'Купить';
       btn.onclick = () => this.events.emit('basket:add', { id: product.id });
+      btn.disabled = false;
     }
 
     this.element.appendChild(clone);

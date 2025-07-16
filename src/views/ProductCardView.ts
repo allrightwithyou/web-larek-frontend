@@ -32,7 +32,7 @@ export class ProductCardView {
     const template = document.getElementById('card-catalog') as HTMLTemplateElement;
     const card = template.content.firstElementChild!.cloneNode(true) as HTMLElement;
     card.querySelector('.card__title')!.textContent = product.title;
-    card.querySelector('.card__price')!.textContent = `${product.price} синапсов`;
+    card.querySelector('.card__price')!.textContent = `${(typeof product.price === 'number' && product.price > 0) ? product.price : 0} синапсов`;
     const img = card.querySelector('.card__image') as HTMLImageElement;
     if (img) img.src = product.image;
     // Категория и цвет рамки
@@ -47,6 +47,11 @@ export class ProductCardView {
       card.classList.add('card_in-basket');
     } else {
       card.classList.remove('card_in-basket');
+    }
+    // Кнопка Купить
+    const buyBtn = card.querySelector('button');
+    if (buyBtn) {
+      buyBtn.disabled = false;
     }
     card.onclick = (e) => {
       this.events.emit('product:click', { id: product.id });
