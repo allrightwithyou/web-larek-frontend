@@ -1,37 +1,56 @@
 import { FormView } from './FormView';
 import { PaymentType } from '../types/types';
+import { EventEmitter } from '../components/base/events';
 
 export class OrderAddressFormView extends FormView {
   public paymentButtons: NodeListOf<HTMLButtonElement>;
-  private orderModel: { setPayment: (p: PaymentType) => void };
   private addressInput: HTMLInputElement;
   private nextButton: HTMLButtonElement;
+  private events: EventEmitter;
 
-  constructor(orderModel: { setPayment: (p: PaymentType) => void }) {
+  constructor(events: EventEmitter) {
     super('order');
-    this.orderModel = orderModel;
+    this.events = events;
     this.paymentButtons = this.element.querySelectorAll('[data-pay]');
     this.addressInput = this.element.querySelector('[name="address"]') as HTMLInputElement;
     this.nextButton = this.element.querySelector('button[type="submit"]') as HTMLButtonElement;
 
-    // Проверка и активация кнопки при вводе адреса
-    this.addressInput.addEventListener('input', () => this.updateNextButtonState());
+    // Навешиваем слушатель на input адреса
+    this.addressInput.addEventListener('input', () => {
+      this.events.emit('order:fieldChanged', { field: 'address', value: this.addressInput.value });
+    });
 
+    // Навешиваем слушатели на кнопки оплаты
     this.paymentButtons.forEach(btn => {
       btn.addEventListener('click', () => {
-        this.paymentButtons.forEach(b => b.classList.remove('button_alt-active'));
-        btn.classList.add('button_alt-active');
-        this.orderModel.setPayment(btn.getAttribute('data-pay') as PaymentType);
-        this.updateNextButtonState();
+        this.events.emit('order:fieldChanged', { field: 'payment', value: btn.getAttribute('data-pay') });
       });
     });
-    // Инициализация состояния кнопки
-    this.updateNextButtonState();
+
+    this.element.addEventListener('submit', (e) => {
+      e.preventDefault();
+      this.events.emit('order:address:submit');
+    });
   }
 
-  private updateNextButtonState() {
-    const addressFilled = this.addressInput.value.trim().length > 0;
-    const paymentSelected = Array.from(this.paymentButtons).some(btn => btn.classList.contains('button_alt-active'));
-    this.nextButton.disabled = !(addressFilled && paymentSelected);
+  setErrors(errors: Record<string, string>) {
+    // Подсветка поля адреса
+    this.addressInput.classList.toggle('input_invalid', Boolean(errors.address));
+    // Подсветка кнопок оплаты
+    this.paymentButtons.forEach(btn => {
+      btn.classList.toggle('button_alt-error', Boolean(errors.payment));
+    });
+    // Сообщение об ошибке
+    this.errors.textContent = errors.address || errors.payment || '';
+  }
+
+  setButtonDisabled(disabled: boolean) {
+    this.nextButton.disabled = disabled;
+  }
+
+  setPayment(payment: string) {
+    this.paymentButtons.forEach(btn => {
+      btn.classList.toggle('button_alt-active', btn.getAttribute('data-pay') === payment);
+    });
   }
 } 

@@ -8,7 +8,6 @@ import { API_URL, CDN_URL } from './utils/constants';
 import { ProductCardView } from './views/ProductCardView';
 import { CatalogView } from './views/CatalogView';
 import { OrderModel } from './models/OrderModel';
-import { OrderFormView } from './views/OrderFormView';
 import { OrderSuccessView } from './views/OrderSuccessView';
 import { ProductDetailView } from './views/ProductDetailView';
 import { ProductApi } from './types/types';
@@ -18,7 +17,7 @@ import { ModalView } from './views/ModalView';
 import { PageView } from './views/PageView';
 import { OrderAddressFormView } from './views/OrderAddressFormView';
 import { OrderContactsFormView } from './views/OrderContactsFormView';
-import { PaymentType } from './types/types';
+import { OrderApi } from './types/types';
 
 const events = new EventEmitter();
 const api = new Api(API_URL);
@@ -28,7 +27,7 @@ const basketTemplate = document.getElementById('basket') as HTMLTemplateElement;
 const basketContainer = basketTemplate.content.firstElementChild!.cloneNode(true) as HTMLElement;
 const basketView = new BasketView(basketContainer, events);
 
-const pageView = new PageView();
+const pageView = new PageView(events);
 
 // Главный экран: каталог товаров
 const catalog = new CatalogView(events);
@@ -80,12 +79,12 @@ events.on('basket:remove', (event: { id: string }) => {
   if (product) {
     product.inBasket = false;
     // Если открыта детальная модалка, обновить только её
-    productDetailView.render({ ...product, inBasket: false });
+    // productDetailView.render({ ...product, inBasket: false });
   }
 });
 
 // Открытие корзины по клику на иконку в шапке
-pageView.onBasketClick(() => {
+events.on('basket:open', () => {
   basketView.render(basketModel.getItems().map((item, idx) => new BasketItemView(item, events, idx).element));
   modalView.open(basketView.getElement());
 });
@@ -105,6 +104,20 @@ function updateBasket() {
 events.on('basket:change', () => {
   updateBasket();
   updateBasketCounter();
+  // Если открыта модалка с деталями товара, обновить кнопку
+  if (
+    modalView.element.classList.contains('modal_active') &&
+    modalView.element.contains(productDetailView.element)
+  ) {
+    const productId = productDetailView.currentProductId;
+    if (productId) {
+      const product = productModel.getProductById(productId);
+      if (product) {
+        const inBasket = basketModel.getItems().some(item => item.id === product.id);
+        productDetailView.render({ ...product, inBasket });
+      }
+    }
+  }
 });
 
 events.on('basket:add', (event: { id: string }) => {
@@ -119,46 +132,70 @@ events.on('basket:add', (event: { id: string }) => {
       quantity: 1
     });
     product.inBasket = true;
-    productDetailView.render({ ...product, inBasket: true });
   }
 });
 
-const orderModel = new OrderModel();
-const orderAddressFormView = new OrderAddressFormView(orderModel);
-const orderContactsFormView = new OrderContactsFormView();
-let orderSuccessView = new OrderSuccessView(0); // Сумма передаётся при успехе
+const orderModel = new OrderModel(events);
+const orderAddressFormView = new OrderAddressFormView(events);
+const orderContactsFormView = new OrderContactsFormView(events);
+const orderSuccessView = new OrderSuccessView(0); // Сумма передаётся при успехе
 
+// --- Order form events mediation ---
+// Передача изменений из view в модель
+
+events.on('order:fieldChanged', (data: { field: string; value: string }) => {
+  orderModel.setField(data.field as any, data.value);
+});
+
+// Передача ошибок и управления кнопкой из модели во view
+
+events.on('order:validationChanged', (errors: Record<string, string>) => {
+  // Для адреса
+  orderAddressFormView.setErrors(errors);
+  orderAddressFormView.setButtonDisabled(Boolean(errors.address) || Boolean(errors.payment));
+  orderAddressFormView.setPayment(orderModel.payment);
+  // Для контактов
+  orderContactsFormView.setErrors(errors);
+  orderContactsFormView.setButtonDisabled(Boolean(errors.email) || Boolean(errors.phone));
+});
+
+// --- Открытие модалок и submit ---
 events.on('order:open', () => {
   modalView.open(orderAddressFormView.element);
-  // Навешиваем обработчики на кнопки оплаты (один раз)
-  orderAddressFormView.paymentButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      orderModel.setPayment(btn.getAttribute('data-pay') as PaymentType);
+});
+
+events.on('order:address:submit', () => {
+  // Переход к контактам только если нет ошибок по адресу и оплате
+  orderModel.validate();
+  const errors: Record<string, string> = {};
+  if (orderModel.address.trim() === '') errors.address = 'Введите адрес';
+  if (!orderModel.payment) errors.payment = 'Выберите способ оплаты';
+  if (!errors.address && !errors.payment) {
+    modalView.open(orderContactsFormView.element);
+  }
+});
+
+events.on('order:contacts:submit', () => {
+  // Отправка заказа только если нет ошибок по email и телефону
+  orderModel.validate();
+  const errors: Record<string, string> = {};
+  if (orderModel.email.trim() === '' || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(orderModel.email)) errors.email = 'Введите корректный email';
+  if (orderModel.phone.trim() === '' || !/^\+?7\s?\d{3}\s?\d{3}-?\d{2}-?\d{2}$/.test(orderModel.phone)) errors.phone = 'Введите корректный номер телефона';
+  if (!errors.email && !errors.phone) {
+    events.emit('order:submit', {
+      address: orderModel.address,
+      payment: orderModel.payment,
+      email: orderModel.email,
+      phone: orderModel.phone
     });
-  });
-});
-
-orderAddressFormView.element.addEventListener('submit', (e) => {
-  e.preventDefault();
-  const address = (orderAddressFormView.element.querySelector('[name="address"]') as HTMLInputElement)?.value || '';
-  orderModel.setAddress(address);
-  modalView.open(orderContactsFormView.element);
-});
-
-orderContactsFormView.element.addEventListener('submit', (e) => {
-  e.preventDefault();
-  const email = (orderContactsFormView.element.querySelector('[name="email"]') as HTMLInputElement)?.value || '';
-  const phone = (orderContactsFormView.element.querySelector('[name="phone"]') as HTMLInputElement)?.value || '';
-  const address = orderModel.address;
-  const payment = orderModel.payment;
-  events.emit('order:submit', { address, payment, email, phone });
+  }
 });
 
 events.on('order:submit', async (data: { address: string; payment: string; email: string; phone: string }) => {
-  orderModel.setAddress(data.address);
-  orderModel.setPayment(data.payment as any);
-  orderModel.setEmail(data.email);
-  orderModel.setPhone(data.phone);
+  // orderModel.setAddress(data.address);
+  // orderModel.setPayment(data.payment as any);
+  // orderModel.setEmail(data.email);
+  // orderModel.setPhone(data.phone);
   // Отправка заказа на сервер
   try {
     const payload = {
@@ -169,10 +206,9 @@ events.on('order:submit', async (data: { address: string; payment: string; email
       email: orderModel.email,
       phone: orderModel.phone
     };
-    const total = basketModel.getTotal(); // Сохраняем сумму до очистки корзины
-    const response = await api.post('/order', payload);
+    const response = await api.post('/order', payload) as OrderApi;
     basketModel.clear();
-    orderSuccessView = new OrderSuccessView(total); // Передаём правильную сумму
+    orderSuccessView.setTotal(response.total); // Используем сумму из ответа сервера
     modalView.open(orderSuccessView.element);
     orderSuccessView.element.addEventListener('order:close', () => {
       modalView.close();

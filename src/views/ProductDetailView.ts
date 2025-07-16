@@ -4,52 +4,55 @@ import { ProductView } from '../types/types';
 export class ProductDetailView {
   public element: HTMLElement;
   private events: EventEmitter;
+  private template: HTMLTemplateElement;
+  public currentProductId: string | null = null;
 
   constructor(events: EventEmitter) {
     this.events = events;
+
+    const template = document.getElementById('card-preview') as HTMLTemplateElement;
+    if (!template) {
+      throw new Error('Template with id "card-preview" not found');
+    }
+    this.template = template;
+
+    // Контейнер, в который будет вставляться содержимое шаблона
     this.element = document.createElement('div');
-    this.element.className = 'card card_full';
   }
 
-  getCategoryClass(category: string): string {
+  private getCategoryClass(category: string): string {
     switch (category) {
-      case 'софт-скил':
-        return 'soft';
-      case 'хард-скил':
-        return 'hard';
-      case 'другое':
-        return 'other';
-      case 'дополнительно':
-        return 'additional';
-      case 'кнопка':
-        return 'button';
-      default:
-        return 'other';
+      case 'софт-скил': return 'soft';
+      case 'хард-скил': return 'hard';
+      case 'другое': return 'other';
+      case 'дополнительно': return 'additional';
+      case 'кнопка': return 'button';
+      default: return 'other';
     }
   }
 
   render(product: ProductView) {
-    this.element.innerHTML = '';
-    const img = document.createElement('img');
-    img.className = 'card__image';
+    this.currentProductId = product.id;
+    this.element.innerHTML = ''; // очищаем контейнер
+    const clone = this.template.content.cloneNode(true) as HTMLElement;
+
+    // Находим нужные элементы в шаблоне
+    const img = clone.querySelector('.card__image') as HTMLImageElement;
+    const category = clone.querySelector('.card__category') as HTMLElement;
+    const title = clone.querySelector('.card__title') as HTMLElement;
+    const desc = clone.querySelector('.card__text') as HTMLElement;
+    const btn = clone.querySelector('.card__button') as HTMLButtonElement;
+    const price = clone.querySelector('.card__price') as HTMLElement;
+
+    // Устанавливаем данные
     img.src = product.image;
     img.alt = product.title;
-    const column = document.createElement('div');
-    column.className = 'card__column';
-    const category = document.createElement('span');
-    const categoryClass = this.getCategoryClass(product.category);
-    category.className = 'card__category card__category_' + categoryClass;
-    category.textContent = product.category;
-    const title = document.createElement('h2');
-    title.className = 'card__title';
     title.textContent = product.title;
-    const desc = document.createElement('p');
-    desc.className = 'card__text';
     desc.textContent = product.description;
-    const row = document.createElement('div');
-    row.className = 'card__row';
-    const btn = document.createElement('button');
-    btn.className = 'button card__button';
+    category.textContent = product.category;
+    category.className = 'card__category card__category_' + this.getCategoryClass(product.category);
+    price.textContent = `${product.price} синапсов`;
+
     if (product.inBasket) {
       btn.textContent = 'Убрать';
       btn.onclick = () => this.events.emit('basket:remove', { id: product.id });
@@ -57,16 +60,7 @@ export class ProductDetailView {
       btn.textContent = 'Купить';
       btn.onclick = () => this.events.emit('basket:add', { id: product.id });
     }
-    const price = document.createElement('span');
-    price.className = 'card__price';
-    price.textContent = product.price + ' синапсов';
-    row.appendChild(btn);
-    row.appendChild(price);
-    column.appendChild(category);
-    column.appendChild(title);
-    column.appendChild(desc);
-    column.appendChild(row);
-    this.element.appendChild(img);
-    this.element.appendChild(column);
+
+    this.element.appendChild(clone);
   }
-} 
+}
