@@ -22,7 +22,7 @@ import { PaymentType } from './types/types';
 
 const events = new EventEmitter();
 const api = new Api(API_URL);
-const productModel = new ProductModel();
+const productModel = new ProductModel(events);
 const basketModel = new BasketModel(events);
 const basketTemplate = document.getElementById('basket') as HTMLTemplateElement;
 const basketContainer = basketTemplate.content.firstElementChild!.cloneNode(true) as HTMLElement;
@@ -32,6 +32,16 @@ const pageView = new PageView();
 
 // Главный экран: каталог товаров
 const catalog = new CatalogView(events);
+
+// Подписка на обновление продуктов
+events.on('products:updated', () => {
+  const cardElements = productModel.getProducts().map(product => {
+    const card = new ProductCardView(events);
+    card.render(product);
+    return card.element;
+  });
+  catalog.render(cardElements);
+});
 
 async function loadAndRenderProducts() {
   try {
@@ -43,12 +53,6 @@ async function loadAndRenderProducts() {
       inBasket: false
     }));
     productModel.setProducts(products);
-    const cardElements = productModel.getProducts().map(product => {
-      const card = new ProductCardView(events);
-      card.render(product);
-      return card.element;
-    });
-    catalog.render(cardElements);
   } catch (error) {
     console.error('Ошибка загрузки товаров:', error);
     catalog.element.innerHTML = '<div class="error">Не удалось загрузить товары. Попробуйте позже.</div>';
@@ -75,7 +79,7 @@ events.on('basket:remove', (event: { id: string }) => {
   const product = productModel.getProductById(event.id);
   if (product) {
     product.inBasket = false;
-    // Если открыта детальная модалка, обновить её
+    // Если открыта детальная модалка, обновить только её
     productDetailView.render({ ...product, inBasket: false });
   }
 });
@@ -88,7 +92,7 @@ pageView.onBasketClick(() => {
 // Обновление счетчика корзины
 function updateBasketCounter() {
   pageView.setBasketCounter(basketModel.getItems().reduce((sum, item) => sum + item.quantity, 0));
-}
+  }
 
 // Обновление корзины и суммы
 function updateBasket() {
@@ -122,7 +126,7 @@ events.on('basket:add', (event: { id: string }) => {
 const orderModel = new OrderModel();
 const orderAddressFormView = new OrderAddressFormView(orderModel);
 const orderContactsFormView = new OrderContactsFormView();
-let orderSuccessView = new OrderSuccessView(0); // Можно передать сумму заказа
+let orderSuccessView = new OrderSuccessView(0); // Сумма передаётся при успехе
 
 events.on('order:open', () => {
   modalView.open(orderAddressFormView.element);
