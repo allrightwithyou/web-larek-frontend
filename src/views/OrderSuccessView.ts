@@ -18,4 +18,9 @@ export class OrderSuccessView {
   setTotal(total: number) {
     this.totalElement.textContent = `Списано ${total} синапсов`;
   }
+
+  // Позволяет подписаться на закрытие окна успеха заказа
+  onClose(cb: () => void) {
+    this.element.addEventListener('order:close', cb);
+  }
 } 

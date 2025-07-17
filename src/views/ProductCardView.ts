@@ -51,7 +51,7 @@ export class ProductCardView {
     // Кнопка Купить
     const buyBtn = card.querySelector('button');
     if (buyBtn) {
-      buyBtn.disabled = false;
+      buyBtn.disabled = (product.price == null);
     }
     card.onclick = (e) => {
       this.events.emit('product:click', { id: product.id });

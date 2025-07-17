@@ -18,6 +18,14 @@ export class ProductDetailView {
 
     // Контейнер, в который будет вставляться содержимое шаблона
     this.element = document.createElement('div');
+
+    // Подписка на изменение корзины
+    this.events.on('basket:change', () => {
+      if (this.currentProductId) {
+        // Ожидается, что presenter вызовет render с актуальным product, но если нет, можно пробросить событие
+        this.events.emit('productDetail:update', { id: this.currentProductId });
+      }
+    });
   }
 
   private getCategoryClass(category: string): string {
@@ -60,7 +68,7 @@ export class ProductDetailView {
     } else {
       btn.textContent = 'Купить';
       btn.onclick = () => this.events.emit('basket:add', { id: product.id });
-      btn.disabled = false;
+      btn.disabled = (product.price == null);
     }
 
     this.element.appendChild(clone);

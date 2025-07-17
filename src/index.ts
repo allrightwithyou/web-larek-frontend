@@ -108,26 +108,14 @@ events.on('basket:change', () => {
   updateBasket();
   updateBasketCounter();
   basketView.setOrderButtonDisabled(basketModel.getItems().length === 0);
-  // Если открыта модалка с деталями товара, обновить кнопку
-  if (
-    modalView.element.classList.contains('modal_active') &&
-    modalView.element.contains(productDetailView.element)
-  ) {
-    const productId = productDetailView.currentProductId;
-    if (productId) {
-      const product = productModel.getProductById(productId);
-      if (product) {
-        const inBasket = basketModel.getItems().some(item => item.id === product.id);
-        productDetailView.render({ ...product, inBasket });
-      }
-    }
-  }
+  // Удаляем проверку и обновление productDetailView отсюда
 });
 
 events.on('basket:add', (event: { id: string }) => {
   const productId = typeof event.id === 'string' ? event.id : String(event.id);
   const product = productModel.getProductById(productId);
-  if (product && !product.inBasket) {
+  // Запрещаем добавление товаров без цены
+  if (product && !product.inBasket && product.price != null) {
     basketModel.addItem({
       id: String(product.id),
       title: product.title,
@@ -169,14 +157,8 @@ events.on('order:open', () => {
 });
 
 events.on('order:address:submit', () => {
-  // Переход к контактам только если нет ошибок по адресу и оплате
-  orderModel.validate();
-  const errors: Record<string, string> = {};
-  if (orderModel.address.trim() === '') errors.address = 'Введите адрес';
-  if (!orderModel.payment) errors.payment = 'Выберите способ оплаты';
-  if (!errors.address && !errors.payment) {
-    modalView.open(orderContactsFormView.element);
-  }
+  // Просто открываем форму контактов, так как submit возможен только при валидной форме
+  modalView.open(orderContactsFormView.element);
 });
 
 events.on('order:contacts:submit', () => {
@@ -211,12 +193,25 @@ events.on('order:submit', async (data: { address: string; payment: string; email
     basketModel.clear();
     orderSuccessView.setTotal(response.total); // Используем сумму из ответа сервера
     modalView.open(orderSuccessView.element);
-    orderSuccessView.element.addEventListener('order:close', () => {
+    orderSuccessView.onClose(() => {
       modalView.close();
     });
   } catch (e) {
     console.error('Order error:', e);
-    alert('Ошибка оформления заказа: ' + JSON.stringify(e));
+    // Выводим ошибку в форму контактов
+    orderContactsFormView.setServerError('Ошибка оформления заказа: ' + (e?.message || JSON.stringify(e)));
+  }
+});
+
+// Обновление productDetailView при изменении корзины
+events.on('productDetail:update', (event: { id: string }) => {
+  // Проверяем, что модалка открыта и отображает детали товара
+  if (modalView.element.classList.contains('modal_active') && modalView.element.contains(productDetailView.element)) {
+    const product = productModel.getProductById(event.id);
+    if (product) {
+      const inBasket = basketModel.getItems().some(item => item.id === product.id);
+      productDetailView.render({ ...product, inBasket });
+    }
   }
 });
 

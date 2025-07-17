@@ -35,4 +35,8 @@ export class OrderContactsFormView extends FormView {
   setButtonDisabled(disabled: boolean) {
     this.payButton.disabled = disabled;
   }
+
+  setServerError(message: string) {
+    this.errors.textContent = message;
+  }
 } 
