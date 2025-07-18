@@ -131,7 +131,11 @@ const orderModel = new OrderModel(events);
 const orderAddressFormView = new OrderAddressFormView(events);
 const orderContactsFormView = new OrderContactsFormView(events);
 const orderSuccessView = new OrderSuccessView(0); // Сумма передаётся при успехе
+orderSuccessView.onClose(() => {
+  modalView.close();
+});
 
+let pendingOrderSubmit = false;
 
 // Передача изменений из view в модель
 
@@ -149,6 +153,19 @@ events.on('order:validationChanged', (errors: Record<string, string>) => {
   // Для контактов
   orderContactsFormView.setErrors(errors);
   orderContactsFormView.setButtonDisabled(Boolean(errors.email) || Boolean(errors.phone));
+  // Если был запрос на отправку и ошибок нет — отправляем заказ
+  if (pendingOrderSubmit && !errors.email && !errors.phone) {
+    pendingOrderSubmit = false;
+    events.emit('order:submit', {
+      address: orderModel.address,
+      payment: orderModel.payment,
+      email: orderModel.email,
+      phone: orderModel.phone
+    });
+  } else if (pendingOrderSubmit) {
+    // Если есть ошибки, сбрасываем флаг
+    pendingOrderSubmit = false;
+  }
 });
 
 // --- Открытие модалок и submit ---
@@ -162,19 +179,8 @@ events.on('order:address:submit', () => {
 });
 
 events.on('order:contacts:submit', () => {
-  // Отправка заказа только если нет ошибок по email и телефону
+  pendingOrderSubmit = true;
   orderModel.validate();
-  const errors: Record<string, string> = {};
-  if (orderModel.email.trim() === '' || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(orderModel.email)) errors.email = 'Введите корректный email';
-  if (orderModel.phone.trim() === '' || !/^\+?7\s?\d{3}\s?\d{3}-?\d{2}-?\d{2}$/.test(orderModel.phone)) errors.phone = 'Введите корректный номер телефона';
-  if (!errors.email && !errors.phone) {
-    events.emit('order:submit', {
-      address: orderModel.address,
-      payment: orderModel.payment,
-      email: orderModel.email,
-      phone: orderModel.phone
-    });
-  }
 });
 
 events.on('order:submit', async (data: { address: string; payment: string; email: string; phone: string }) => {
@@ -193,9 +199,6 @@ events.on('order:submit', async (data: { address: string; payment: string; email
     basketModel.clear();
     orderSuccessView.setTotal(response.total); // Используем сумму из ответа сервера
     modalView.open(orderSuccessView.element);
-    orderSuccessView.onClose(() => {
-      modalView.close();
-    });
   } catch (e) {
     console.error('Order error:', e);
     // Выводим ошибку в форму контактов
